@@ -1,0 +1,20 @@
+# Use an official Node runtime as a parent image
+FROM node:20-alpine
+
+# Set the working directory in the container
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the backend application code
+COPY . .
+
+# Expose the port the app runs on (commonly 3000, 5000, or 8000 for Node)
+EXPOSE 5000
+
+# Command to run the application
+CMD ["node", "src/app.js"]

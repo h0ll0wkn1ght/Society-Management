@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      # Add any other environment variables your backend needs here
+      # Or uncomment the line below to use an env file
+    env_file: 
+      - ./backend/.env
+
+  frontend-web:
+    build:
+      context: ./frontend-web
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:5000 # Make sure this matches your backend URL
