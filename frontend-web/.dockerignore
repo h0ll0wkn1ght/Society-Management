@@ -1,5 +1,8 @@
 node_modules
+.npm
 dist
-npm-debug.log
+build
+.expo
 .env
 .git
+.github

@@ -1,64 +1,61 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'node20'
+    }
+
     environment {
-        // Change 'yourdockerhubusername' to your actual Docker Hub username
-        DOCKER_HUB_USER = 'yourdockerhubusername'
-        // These are the names of the images we will build
-        BACKEND_IMAGE = "${DOCKER_HUB_USER}/society-backend"
-        FRONTEND_IMAGE = "${DOCKER_HUB_USER}/society-frontend"
-        // Generate a unique tag for each build (e.g., build number)
-        IMAGE_TAG = "v${env.BUILD_ID}"
-        
-        // This ID should match the Credentials ID you create in Jenkins for Docker Hub
-        DOCKER_CREDS_ID = 'docker-hub-credentials'
+        // You can set global environment variables here
+        NODE_ENV = 'development'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out code from GitHub...'
-                // This step automatically checks out the code from the branch Jenkins is configured to watch
+                // Checkout code from Git
                 checkout scm
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Backend: Install') {
             steps {
-                echo 'Building Backend Image...'
                 dir('backend') {
-                    sh 'docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} -t ${BACKEND_IMAGE}:latest .'
+                    echo 'Installing Backend Dependencies...'
+                    // Use bat instead of sh if running Jenkins natively on Windows 
+                    // However, 'sh' is standard for Docker/Linux Jenkins setups
+                    sh 'npm install'
                 }
+            }
+        }
 
-                echo 'Building Frontend Web Image...'
+        stage('Frontend Web: Build') {
+            steps {
                 dir('frontend-web') {
-                    sh 'docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} -t ${FRONTEND_IMAGE}:latest .'
+                    echo 'Installing Web Dependencies...'
+                    sh 'npm install'
+                    
+                    echo 'Building Web App...'
+                    sh 'npm run build'
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Frontend Mobile: Install') {
             steps {
-                echo 'Pushing Docker Images to Docker Hub...'
-                withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDS_ID, passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh 'docker push ${BACKEND_IMAGE}:${IMAGE_TAG}'
-                    sh 'docker push ${BACKEND_IMAGE}:latest'
-                    sh 'docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}'
-                    sh 'docker push ${FRONTEND_IMAGE}:latest'
+                dir('frontend-mobile') {
+                    echo 'Installing Mobile Dependencies...'
+                    sh 'npm install'
                 }
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Docker: Build Images') {
             steps {
-                echo 'Deploying to Kubernetes Cluster...'
-                // Placeholder for Kubernetes deployment step
-                // We will create the k8s YAML files next!
-                // sh 'kubectl apply -f k8s/'
-                // sh 'kubectl set image deployment/backend backend=${BACKEND_IMAGE}:${IMAGE_TAG}'
-                // sh 'kubectl set image deployment/frontend frontend=${FRONTEND_IMAGE}:${IMAGE_TAG}'
-                echo 'Deployment successful!'
+                echo 'Skipping Docker build in Jenkins container as it does not have Docker installed by default.'
+                // Normally this would be: sh 'docker-compose build'
+                // However, since Jenkins is running INSIDE Docker, 
+                // nested Docker-in-Docker requires advanced setup.
             }
         }
     }
@@ -66,14 +63,12 @@ pipeline {
     post {
         always {
             echo 'Pipeline execution complete.'
-            // Clean up old local images to save space on the Jenkins server
-            sh 'docker image prune -f'
         }
         success {
-            echo 'Pipeline succeeded!'
+            echo '✅ All stages completed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Check the logs.'
+            echo '❌ Pipeline failed. Please check the stage logs.'
         }
     }
 }
